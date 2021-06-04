@@ -28,10 +28,17 @@ def admin_auth(
         creds: HTTPBasicCredentials = Depends(HTTPBasic(scheme_name="Admin Token")),
         db: Session = Depends(database)) -> Admin:
 
-    admin: Optional[Admin] = db.query(Admin).filter(Admin.username == creds.username).one_or_none()
+    admin: Optional[Admin] = db.query(Admin).one_or_none()
 
     if admin is not None:
-        return admin
+        old_hash = admin.password_hash
+
+        if admin.check_password(creds.password):
+            if admin.password_hash is not old_hash:
+                db.add(admin)
+                # Ensure that a commit happens. If the client doesn't want autocommit, he must disable it again.
+                db.autocommit = not db.future
+            return admin
 
     raise HTTPException(
         status_code=HTTP_403_FORBIDDEN,

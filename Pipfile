@@ -13,6 +13,7 @@ bcrypt = "*"
 [dev-packages]
 uvicorn = "*"
 sqlalchemy-migrate = "*"
+alembic = "*"
 
 [requires]
 python_version = "3.9"
