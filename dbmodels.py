@@ -11,7 +11,7 @@ class Admin(Base):
     username = Column(String, unique=True, index=True)
     password_hash = Column(String(128))
 
-    clients = relationship("Client", back_populates="owner")
+    clients = relationship("Client", uselist=True, back_populates="owner")
 
     def set_password(self, password):
         self.password_hash = hash.hash_password(password)
@@ -29,10 +29,10 @@ class CacheInfo(Base):
     __tablename__ = "cache_info"
     id = Column(Integer, primary_key=True, index=True)
 
-    l1d: Column(Integer)
-    l1i: Column(Integer)
-    l2: Column(Integer)
-    l3: Column(Integer)
+    l1d = Column(Integer)
+    l1i = Column(Integer)
+    l2 = Column(Integer)
+    l3 = Column(Integer)
 
     cpu = relationship("CpuInfo", uselist=False, back_populates="cache")
 
@@ -63,7 +63,7 @@ class CpuInfo(Base):
     virtualization = Column(Boolean)
 
     cache_id = Column(Integer, ForeignKey(CacheInfo.id), index=True)
-    cache = relationship(CacheInfo, back_populates="cpu")
+    cache = relationship(CacheInfo, uselist=False, back_populates="cpu")
 
     client = relationship("Client", uselist=False, back_populates="cpu")
 
@@ -113,7 +113,7 @@ class SystemInfo(Base):
     virtualHost = Column(String)
 
     raspberry_id = Column(Integer, ForeignKey(RaspberryInfo.id), index=True)
-    raspberry = relationship(RaspberryInfo, back_populates="system")
+    raspberry = relationship(RaspberryInfo, uselist=False, back_populates="system")
 
     client = relationship("Client", uselist=False, back_populates="system")
 
@@ -139,22 +139,22 @@ class Client(Base):
     id = Column(Integer, primary_key=True, index=True)
     token = Column(String, unique=True, index=True)
 
-    results = relationship("Result", uselist=False, back_populates="client")
+    results = relationship("Result", uselist=True, back_populates="client")
 
     owner_id = Column(Integer, ForeignKey(Admin.id), index=True)
-    owner = relationship(Admin, back_populates="clients")
+    owner = relationship(Admin, uselist=False, back_populates="clients")
 
     system_id = Column(Integer, ForeignKey(SystemInfo.id), index=True)
-    system = relationship(SystemInfo, back_populates="client")
+    system = relationship(SystemInfo, uselist=False, back_populates="client")
 
     os_id = Column(Integer, ForeignKey(OsInfo.id), index=True)
-    os = relationship(OsInfo, back_populates="client")
+    os = relationship(OsInfo, uselist=False, back_populates="client")
 
     cpu_id = Column(Integer, ForeignKey(CpuInfo.id), index=True)
-    cpu = relationship(CpuInfo, back_populates="client")
+    cpu = relationship(CpuInfo, uselist=False, back_populates="client")
 
     docker_id = Column(Integer, ForeignKey(DockerInfo.id), index=True)
-    docker = relationship(DockerInfo, back_populates="client")
+    docker = relationship(DockerInfo, uselist=False, back_populates="client")
 
 
 class Result(Base):
@@ -169,4 +169,4 @@ class Result(Base):
     tags = Column(PickleType)
 
     client_id = Column(Integer, ForeignKey(Client.id), index=True)
-    client = relationship(Client, back_populates="results")
+    client = relationship(Client, uselist=False, back_populates="results")

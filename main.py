@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 import models
 from auth import admin_auth, client_auth
 from db import database
-from dbmodels import Admin, Client, Result, DockerInfo, RaspberryInfo, SystemInfo, OsInfo, CacheInfo
+from dbmodels import Admin, Client, Result, DockerInfo, RaspberryInfo, SystemInfo, OsInfo, CacheInfo, CpuInfo
 
 app = FastAPI()
 
@@ -34,7 +34,7 @@ def register(
     client = Client(owner=admin, token=secrets.token_hex(nbytes=64))
     db.add(client)
     db.commit()
-    db.expire(client, "id")
+    db.expire(client, ("id", ))
     return models.Client.from_orm(client)
 
 
@@ -66,7 +66,7 @@ def unregister(
     db.delete(client)
 
     db.commit()
-    db.expire(admin, "clients")
+    db.expire(admin, ("clients", ))
 
 
 @app.patch("/runners", summary="Set current runner system info", tags=["Bookkeeping"])
@@ -85,16 +85,19 @@ def set_system_info(props: models.ClientMeta,
     db.add(client.docker)
 
     if client.system is not None:
-        if client.system.raspberry is not None:
-            client.system.raspberry.__dict__.update(props.system.raspberry.__dict__)
-        else:
-            client.system.raspberry = RaspberryInfo(props.system.raspberry.__dict__)
+        if props.system.raspberry is not None:
+            if client.system.raspberry is not None:
+                client.system.raspberry.__dict__.update(props.system.raspberry.__dict__)
+            else:
+                client.system.raspberry = RaspberryInfo(props.system.raspberry.__dict__)
         client.system.__dict__.update({k: v for k, v in props.system.__dict__.items() if k != "raspberry"})
     else:
         client.system = SystemInfo(**{k: v for k, v in props.system.__dict__.items() if k != "raspberry"})
-        client.system.raspberry = RaspberryInfo(props.system.raspberry.__dict__)
+        if props.system.raspberry is not None:
+            client.system.raspberry = RaspberryInfo(props.system.raspberry.__dict__)
 
-    db.add(client.system.raspberry)
+    if client.system.raspberry is not None:
+        db.add(client.system.raspberry)
     db.add(client.system)
 
     if client.os is not None:
@@ -110,9 +113,14 @@ def set_system_info(props: models.ClientMeta,
         else:
             client.cpu.cache = CacheInfo(props.cpu.cache.__dict__)
         client.cpu.__dict__.update({k: v for k, v in props.cpu.__dict__.items() if k != "cache"})
+    else:
+        client.cpu = CpuInfo(**{k: v for k, v in props.cpu.__dict__.items() if k != "cache"})
+        client.cpu.cache = CacheInfo(**props.cpu.cache.__dict__)
 
     db.add(client.cpu.cache)
     db.add(client.cpu)
+
+    db.commit()
 
 
 @app.post("/results", summary="Publish a new result", tags=["Results"])
@@ -121,13 +129,15 @@ def publish_result(
         client: Client = Depends(client_auth),
         db: Session = Depends(database)):
     result = Result(
-        *result.__dict__,
-        client_id=client.id,
+        **{
+            **result.__dict__,
+            "client_id": client.id,
+        }
     )
     db.add(result)
     db.commit()
-    db.expire(result, "id")
-    db.expire(client, "results")
+    db.expire(result, ("id", ))
+    db.expire(client, ("results", ))
 
 
 @app.get("/results", summary="List all results", tags=["Results"], response_model=List[models.Result])
