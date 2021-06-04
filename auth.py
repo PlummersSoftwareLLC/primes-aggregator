@@ -28,7 +28,7 @@ def admin_auth(
         creds: HTTPBasicCredentials = Depends(HTTPBasic(scheme_name="Admin Token")),
         db: Session = Depends(database)) -> Admin:
 
-    admin: Optional[Admin] = db.query(Admin).one_or_none()
+    admin: Optional[Admin] = db.query(Admin).filter(Admin.username == creds.username).one_or_none()
 
     if admin is not None:
         old_hash = admin.password_hash
@@ -37,7 +37,7 @@ def admin_auth(
             if admin.password_hash is not old_hash:
                 db.add(admin)
                 # Ensure that a commit happens. If the client doesn't want autocommit, he must disable it again.
-                db.autocommit = not db.future
+                db.commit()
             return admin
 
     raise HTTPException(

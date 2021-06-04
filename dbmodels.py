@@ -1,4 +1,3 @@
-import bcrypt
 from sqlalchemy import Column, Integer, String, ForeignKey, PickleType, Float, Boolean
 from sqlalchemy.orm import relationship
 
@@ -15,7 +14,7 @@ class Admin(Base):
     clients = relationship("Client", back_populates="owner")
 
     def set_password(self, password):
-        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        self.password_hash = hash.hash_password(password)
 
     def check_password(self, password):
         verify_result = hash.verify_password(self.password_hash, password)
